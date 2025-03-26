@@ -1,0 +1,2 @@
+# Store any data you want to keep in the `outputs` directory
+ Store any data we want to keep. This could be model predictions, confusion matrices, or any other data that we want to save for future reference.
