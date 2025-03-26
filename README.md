@@ -2,18 +2,18 @@
 
 This project implements logistic regression using the softmax function to classify handwritten digits from the MNIST dataset. It is part of Project 4 for ECE 4332 / ECE 5370 -- Machine Learning by Dr. Hamid Sari-Saraf @ Texas Tech University.
 
-## ⚠️ Large Files in the Repository
+## Large Files in the Repository
 The mnist_train.csv is a large file (∼107 MB). Enable git large file storage (LFS) after cloning this repository.
 
 ```bash
 git lfs install
 ```
 
-## 🧠 Overview
+## Overview
 
 Implementation of a simple linear model trained with cross-entropy loss and softmax activation to classify digits (0–9) from 28×28 grayscale images.
 
-## 🗂️ Directory Structure
+## Directory Structure
 
 ```bash
 ├── data/                  # Contains the MNIST dataset in CSV format
@@ -31,7 +31,7 @@ Implementation of a simple linear model trained with cross-entropy loss and soft
 ```
 
 
-## 📦 Project Workflow
+## Project Workflow
 ```
            ┌──────────────────────┐
            │    mnist_train.csv   │
@@ -79,7 +79,7 @@ train_label               val_label
 ```
 
 
-## ⚙️ Specifications
+## Specifications
 
 - Input: Flattened 28x28 images (784 features)
 - Output: 10-class probability vector using softmax
@@ -87,14 +87,20 @@ train_label               val_label
 - Metrics: Accuracy, Confusion Matrix, Execution Time
 - Output: Predictions saved in an Excel file
 
-## 🧪 Usage
+## Usage
 
-1. **Train the model** using `main.py` or your training script.
-2. **Test the model** by passing a folder of `.tif` test images and a trained model file.
-3. **Results** will be saved in an Excel file with filenames and predicted labels.
+1. **Train the model** using `main.py` script. The trained model will be saved in the `models/` directory.
+```bash
+python main.py
+```
+2. **Results** will be saved in an Excel file with filename `predictions.xlsx` in the `outputs/` directory.
+```bash
+outputs/
+└── predictions.xlsx
+```
 
 
-## 🧑‍💻 Author(s)
+## Author(s)
 
 Rishikesh -- rishikesh3304@gmail.com
 Samir Hossain -- samir.hossain@ttu.edu
