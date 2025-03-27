@@ -105,7 +105,6 @@ outputs/
 Rishikesh -- rishikesh3304@gmail.com
 Samir Hossain -- samir.hossain@ttu.edu
 [![Project Authors](https://contrib.rocks/image?repo=rishikesh2715/logistic_regression_mnist_classifier&max=300)](https://github.com/rishikesh2715/logistic_regression_mnist_classifier/graphs/contributors)
-[![Project Authors](https://contrib.rocks/image?repo=InfiniteWes/Operating-Systems-Project&max=300)](https://github.com/InfiniteWes/Operating-Systems-Project/graphs/contributors)
 
 
 
