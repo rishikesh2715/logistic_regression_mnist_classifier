@@ -1,30 +1,45 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import struct
 
-def load_csv(path):
+def read_idx_images(path):
     """
-    Load data from a csv file. The first column is the label 
-    and the rest are the pixel values from the MNIST dataset.
+    Read the idx file and return the data as a numpy array
 
-    The pixel values are normalized by dividing by 255.
-
-    :param path: path to the csv file
-    :return: A tuple of numpy arrays (data, labels)
-        - data: 2D numpy array of shape (n_samples, n_features)
-        - labels: 1D numpy array of shape (n_samples,) containing the labels ( integers in [0, 9] )
-    
+    :param path: path to the idx file
+    :return: 2D numpy array of shape (n_samples, n_features) containing the images
     """
+    with open(path, 'rb') as f:
+        magic, num_images, rows, cols = struct.unpack(">IIII", f.read(16))
+        image_data = np.frombuffer(f.read(), dtype=np.uint8)
+        image_data = image_data.reshape(num_images, rows * cols).astype(np.float32) / 255.0
+    return image_data
 
-    data = []
-    labels = []
-    with open(path, 'r') as f:
-        rows = f.readlines()
-        for row in rows:
-            row = row.strip().split(',')
-            data.append([int(x)/255 for x in row[1:]])
-            labels.append(int(row[0]))
+def read_idx_labels(path):
+    """
+    Read the idx file and return the data as a numpy array
 
-    return np.array(data), np.array(labels)
+    :param path: path to the idx file
+    :return: 1D numpy array of shape (n_samples,) containing the labels ( integers in [0, 9] )
+    """
+    with open(path, 'rb') as f:
+        magic, num_labels = struct.unpack(">II", f.read(8))
+        label_data = np.frombuffer(f.read(), dtype=np.uint8)
+    return label_data
+
+def one_hot_encode(labels, num_classes=10):
+    """
+    One-hot encode the labels
+
+    :param labels: 1D numpy array of shape (n_samples,) containing the labels ( integers in [0, 9] )
+    :param num_classes: number of classes
+
+    :return: 2D numpy array of shape (n_samples, num_classes) containing the one-hot encoded labels
+    """
+    one_hot = np.zeros((len(labels), num_classes))
+    one_hot[np.arange(len(labels)), labels] = 1
+    return one_hot
 
 
 def load_mnist_train():
@@ -40,22 +55,16 @@ def load_mnist_train():
     """
     
     print("Loading MNIST training data...")
-    data, label = load_csv('../data/mnist_train.csv')
-    assert len(data) == len(label)
-    print("Training data loaded with {count} images".format(count=len(data)))
+    data = read_idx_images('../data/train-images.idx3-ubyte')
+    labels = read_idx_labels('../data/train-labels.idx1-ubyte')
+    assert len(data) == len(labels)
+    print(f"Training data loaded with {len(data)} images.")
 
+    # one-hot encode the labels
+    one_hot_labels = one_hot_encode(labels)
 
-    # One-hot encode
-    num_samples = len(label)
-    num_classes = 10
-    one_hot_labels = np.zeros((num_samples, num_classes))
-
-    for i in range(num_samples):
-        one_hot_labels[i, label[i]] = 1
-
-    
-    # Split the train set in train and validation set (80-20 split)
-    split_idx = int(0.8 * num_samples)
+    # Split the data into training and validation sets
+    split_idx = int(0.8 * len(data))
     train_data = data[:split_idx]
     train_label = one_hot_labels[:split_idx]
     val_data = data[split_idx:]
@@ -73,18 +82,13 @@ def load_mnist_test():
     """
     # Load testing data
     print("Loading testing data...")
-    data, label = load_csv('../data/mnist_test.csv')
-    assert len(data) == len(label)
-    print("Testing data loaded with {count} images".format(count=len(data)))
+    data = read_idx_images('../data/t10k-images.idx3-ubyte')
+    labels = read_idx_labels('../data/t10k-labels.idx1-ubyte')
+    assert len(data) == len(labels)
+    print(f"Testing data loaded with {len(data)} images.")
 
     # one-hot encode the labels
-    num_samples = len(label)
-    num_classes = 10
-
-    one_hot_labels = np.zeros((num_samples, num_classes))
-
-    for i in range(num_samples):
-        one_hot_labels[i, label[i]] = 1
+    one_hot_labels = one_hot_encode(labels)
 
     return data, one_hot_labels
 
