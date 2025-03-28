@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import struct
+import cv2
 
 def read_idx_images(path):
     """
