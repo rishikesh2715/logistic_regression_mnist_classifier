@@ -48,8 +48,8 @@ class LogisticRegression:
         return weights, bias
    
     def propagation(self, X, Y):
-        # X shape should be (n_features, n_samples)
-        # Y shape should be (n_classes, n_samples)
+        # X shape (n_features, n_samples)
+        # Y shape (n_classes, n_samples)
         n = X.shape[1]
 
         # Forward pass
