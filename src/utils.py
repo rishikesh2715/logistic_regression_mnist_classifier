@@ -56,8 +56,8 @@ def load_mnist_train():
     """
     
     print("Loading MNIST training data...")
-    data = read_idx_images('../data/train-images.idx3-ubyte')
-    labels = read_idx_labels('../data/train-labels.idx1-ubyte')
+    data = read_idx_images('../data/MNIST/train-images.idx3-ubyte')
+    labels = read_idx_labels('../data/MNIST/train-labels.idx1-ubyte')
     assert len(data) == len(labels)
     print(f"Training data loaded with {len(data)} images.")
 
@@ -83,8 +83,8 @@ def load_mnist_test():
     """
     # Load testing data
     print("Loading testing data...")
-    data = read_idx_images('../data/t10k-images.idx3-ubyte')
-    labels = read_idx_labels('../data/t10k-labels.idx1-ubyte')
+    data = read_idx_images('../data/MNIST/t10k-images.idx3-ubyte')
+    labels = read_idx_labels('../data/MNISTt10k-labels.idx1-ubyte')
     assert len(data) == len(labels)
     print(f"Testing data loaded with {len(data)} images.")
 
