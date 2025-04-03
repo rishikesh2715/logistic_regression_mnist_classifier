@@ -4,6 +4,62 @@ import os
 import struct
 import cv2
 
+def load_elegans_data(image_size=(28, 28), test_split=0.1, val_split=0.1):
+    """
+    Load the elegans binary classification dataset from data foler.
+    - Folder: ../data/elegans/0 -> no worm
+    - Folder: ../data/elegans/1 -> worm
+
+    :param image_size: Image shape (width, height) -> same as the MNIST size
+    :param test_split: 10% of data for testing
+    :param val_split: 10% of data for validation (from remaining train)
+    :return:
+        train_data, train_labels, val_data, val_labels, test_data, test_labels
+    """
+    data_dir = "../data/elegans"
+    images = []
+    labels = []
+
+    for label in ["0", "1"]:
+        folder = os.path.join(data_dir, label)
+        for filename in os.listdir(folder):
+            path = os.path.join(folder, filename)
+            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+            if img is None:
+                continue
+            img = cv2.resize(img, image_size)
+            img = img.astype(np.float32) / 255.0
+            images.append(img.flatten())  # Flatten like MNIST
+            labels.append(int(label))
+
+    images = np.array(images)
+    labels = np.array(labels)
+
+    # Shuffle data
+    indices = np.arange(len(images))
+    np.random.shuffle(indices)
+    images = images[indices]
+    labels = labels[indices]
+
+    # Split test
+    test_size = int(test_split * len(images))
+    val_size = int(val_split * (len(images) - test_size))
+
+    test_data = images[:test_size]
+    test_labels = labels[:test_size]
+    val_data = images[test_size:test_size + val_size]
+    val_labels = labels[test_size:test_size + val_size]
+    train_data = images[test_size + val_size:]
+    train_labels = labels[test_size + val_size:]
+
+    # one-hot encode (2 classes: [1, 0] and [0, 1])
+    train_labels = one_hot_encode(train_labels, num_classes=2)
+    val_labels = one_hot_encode(val_labels, num_classes=2)
+    test_labels = one_hot_encode(test_labels, num_classes=2)
+
+    return train_data, train_labels, val_data, val_labels, test_data, test_labels
+
+
 def read_idx_images(path):
     """
     Read the idx file and return the data as a numpy array
@@ -84,7 +140,7 @@ def load_mnist_test():
     # Load testing data
     print("Loading testing data...")
     data = read_idx_images('../data/MNIST/t10k-images.idx3-ubyte')
-    labels = read_idx_labels('../data/MNISTt10k-labels.idx1-ubyte')
+    labels = read_idx_labels('../data/t10k-labels.idx1-ubyte')
     assert len(data) == len(labels)
     print(f"Testing data loaded with {len(data)} images.")
 
@@ -141,5 +197,8 @@ def plot_results():
 
 
 if __name__ == '__main__':
-    train_data, train_label, _, _ = load_mnist_train()
-    plot_sample_images(train_data, train_label)
+    # train_data, train_label, _, _ = load_mnist_train()
+    # plot_sample_images(train_data, train_label)
+
+    train_data, train_labels, val_data, val_labels, test_data, test_labels = load_elegans_data()
+    plot_sample_images(train_data, train_labels, num_images=10)
