@@ -72,11 +72,10 @@ def train_model(num_epochs=1000, learning_rate=0.5):
             print(f"Epoch {epoch}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
             print(f"Train Accuracy: {train_acc:.2f}%, Val Accuracy: {val_acc:.2f}%")
     
-    # Save model
-    model.save_model('trained_model.npy')
+    # Saving the trained model
+    model.save_trained_model('trained_model.pkl')
     
     return model, train_losses, val_losses, train_accuracies, val_accuracies
 
 if __name__ == '__main__':
     model, train_losses, val_losses, train_accuracies, val_accuracies = train_model()
-    # You can now use utils.plot_results() to visualize the training progress

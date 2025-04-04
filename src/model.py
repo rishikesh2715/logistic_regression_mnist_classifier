@@ -1,6 +1,7 @@
 # import data handling from the utils.py file
 import utils
 import numpy as np
+import pickle
 
 """
 model.py
@@ -29,6 +30,12 @@ TODO:
 """
 
 # Class for logistic regression
+"""
+    The Logistic Regression class below is using a binary classification 10 times instead of a multi-class classification. In a way it is a simpler implementation
+    because it sets harder boundaries between each number using the sigmoid function. It looks and compares the correct number vs the rest. 
+    Instead of the relationships between the two. That is why we have a jump within our
+    training accuracy.
+"""
 class LogisticRegression:
     def __init__(self, n_features, n_classes):
         # Initialize model parameters based on input dimensions
@@ -83,40 +90,59 @@ class LogisticRegression:
 
     def get_accuracy(self, X, Y):
         predictions = self.predict(X)
+        # print("debuggin predictions: ", predictions)                 # Just here to help me debug and make sure my predictions are working correclty and to visualize them better
         accuracy = 100.0 - np.mean(np.abs(predictions - Y)) * 100.0
+        # print("debugging accuracy: ", accuracy)                      # Just here to help me debug and make sure my accuracy is working correctly
         return accuracy
+    
+    # Uncomment the code below to just save the model base / untrained. 
+    """
+    def save_base_model(self, path):
+        if not path.endswith('.pkl'):
+            path = path + '.pkl'
+            
+        # Create a new instance with same dimensions but fresh initialization
+        fresh_model = LogisticRegression(self.n_features, self.n_classes)
+        
+        with open(path, 'wb') as f:
+            pickle.dump(fresh_model.__dict__, f)
+    """
 
     # Add save/load methods
-    def save_model(self, path):
-        model_params = {
-            'weights': self.weights,
-            'bias': self.bias,
-            'n_features': self.n_features,
-            'n_classes': self.n_classes
-        }
-        np.save(path, model_params)
+    def save_trained_model(self, path):
+        # Making sure the path ends in .pkl
+        if not path.endswith('.pkl'):
+            path = path + '.pkl'
 
+        with open(path, 'wb') as f:
+            pickle.dump(self.__dict__, f)
+    
+
+    # Loading a model with a .pkl file type.
     def load_model(self, path):
-        model_params = np.load(path, allow_pickle=True).item()
-        self.weights = model_params['weights']
-        self.bias = model_params['bias']
-        self.n_features = model_params['n_features']
-        self.n_classes = model_params['n_classes']
+        if not path.endswith('.pkl'):
+            path = path + '.pkl'
 
-    def model(self, X_train, Y_train, X_test, Y_test, num = 1000, learning_rate = 0.5):
-        costs = []
+        with open(path, 'rb') as f:
+            params = pickle.load(f)
+            self.__dict__.update(params)
+
+    # Creating the final form of the logisitic regression model. Setting the number of iterations and the learning rate for the gradient decent.
+    def model(self, X_train, Y_train, X_test, Y_test, num = 1000, learning_rate = 0.05):
+        costs = []                                                   # initializing the costs as an array to store all the values
 
         for i in range(num):
-            cost = self.train_step(X_train, Y_train, learning_rate)
-            if i % 100 == 0:
+            cost = self.train_step(X_train, Y_train, learning_rate)  # based off the number of iterations we get the cost for each iteration calling the train_step function
+            if i % 100 == 0:                                         # On the 100th iteration we append the cost to the costs array
                 costs.append(cost)
 
-        Y_prediction_train = self.predict(X_train)
-        Y_prediction_test = self.predict(X_test)
+        Y_prediction_train = self.predict(X_train)                   # Prediction for the training, by calling the predict function
+        Y_prediction_test = self.predict(X_test)                     # Prediction for the testing, by calling the predict function
 
-        train_accuracy = self.get_accuracy(X_train, Y_train)
-        test_accuracy = self.get_accuracy(X_test, Y_test)
+        train_accuracy = self.get_accuracy(X_train, Y_train)         # Return the training accuracy as a variable
+        test_accuracy = self.get_accuracy(X_test, Y_test)            # Return the testing accuracy as a variable
 
+        # Creating a dictionary to store the results of our model.
         r = {
             "Y_prediction_train": Y_prediction_train,
             "Y_prediction_test": Y_prediction_test,
@@ -128,6 +154,7 @@ class LogisticRegression:
         print("Accuracy for Training: ", train_accuracy)
         print("Accuracy for Testing: ", test_accuracy)
 
+        # Return the results or r (which is a dictionary)
         return r
 
 
