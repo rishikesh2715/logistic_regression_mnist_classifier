@@ -164,7 +164,7 @@ def load_mnist_test():
     # Load testing data
     print("Loading testing data...")
     data = read_idx_images('../data/MNIST/t10k-images.idx3-ubyte')
-    labels = read_idx_labels('../data/t10k-labels.idx1-ubyte')
+    labels = read_idx_labels('../data/MNIST/t10k-labels.idx1-ubyte')
     assert len(data) == len(labels)
     print(f"MNIST Testing data loaded with {len(data)} images.")
 
