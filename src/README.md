@@ -11,9 +11,9 @@ Thus we named the class ```logisticRegression```. For the datasets, we decided t
 When using multiclass classification you can implement binary, but for best optimization it uses the **softmax function**:
 
 #### Online version of Softmax function:
-$$
+```math
 σ(\vec{z})_{i} = \frac{e^{z_{i}}}{\sum_{j=1}^{K} e^{z_{j}}}
-$$
+```
 
 #### In-class version of Softmax function:
 $$y^{(n)}_{j} = \frac{e^{\underline{w}_j \cdot{\phi{\underline{X}^{n}}}}}{\sum_{k=1}^{K} e^{\underline{w}_k}}$$
