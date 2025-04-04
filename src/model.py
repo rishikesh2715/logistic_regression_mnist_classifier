@@ -127,35 +127,6 @@ class LogisticRegression:
             params = pickle.load(f)
             self.__dict__.update(params)
 
-    # Creating the final form of the logisitic regression model. Setting the number of iterations and the learning rate for the gradient decent.
-    def model(self, X_train, Y_train, X_test, Y_test, num = 1000, learning_rate = 0.05):
-        costs = []                                                   # initializing the costs as an array to store all the values
-
-        for i in range(num):
-            cost = self.train_step(X_train, Y_train, learning_rate)  # based off the number of iterations we get the cost for each iteration calling the train_step function
-            if i % 100 == 0:                                         # On the 100th iteration we append the cost to the costs array
-                costs.append(cost)
-
-        Y_prediction_train = self.predict(X_train)                   # Prediction for the training, by calling the predict function
-        Y_prediction_test = self.predict(X_test)                     # Prediction for the testing, by calling the predict function
-
-        train_accuracy = self.get_accuracy(X_train, Y_train)         # Return the training accuracy as a variable
-        test_accuracy = self.get_accuracy(X_test, Y_test)            # Return the testing accuracy as a variable
-
-        # Creating a dictionary to store the results of our model.
-        r = {
-            "Y_prediction_train": Y_prediction_train,
-            "Y_prediction_test": Y_prediction_test,
-            "w": self.weights,
-            "b": self.bias,
-            "learning_rate": learning_rate,
-            "num": num}
-        
-        print("Accuracy for Training: ", train_accuracy)
-        print("Accuracy for Testing: ", test_accuracy)
-
-        # Return the results or r (which is a dictionary)
-        return r
 
 
 
