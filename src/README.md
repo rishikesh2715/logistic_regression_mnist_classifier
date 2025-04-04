@@ -16,4 +16,6 @@ When using multiclass classification you can implement binary, but for best opti
 ```
 
 #### In-class version of Softmax function:
-$$y^{(n)}_{j} = \frac{e^{\underline{w}_j \cdot{\phi{\underline{X}^{n}}}}}{\sum_{k=1}^{K} e^{\underline{w}_k}}$$
+```math
+y^{(n)}_{j} = \frac{e^{\underline{w}_j \cdot{\phi{\underline{X}^{n}}}}}{\sum_{k=1}^{K} e^{\underline{w}_k}}$$
+```
