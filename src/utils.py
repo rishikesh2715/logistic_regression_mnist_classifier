@@ -4,23 +4,36 @@ import os
 import struct
 import cv2
 
-def load_elegans_data(image_size=(28, 28), test_split=0.1, val_split=0.1):
+def one_hot_encode(labels, num_classes=10):
     """
-    Load the elegans binary classification dataset from data foler.
-    - Folder: ../data/elegans/0 -> no worm
-    - Folder: ../data/elegans/1 -> worm
+    One-hot encode the labels
 
-    :param image_size: Image shape (width, height) -> same as the MNIST size
-    :param test_split: 10% of data for testing
-    :param val_split: 10% of data for validation (from remaining train)
-    :return:
-        train_data, train_labels, val_data, val_labels, test_data, test_labels
+    :param labels: 1D numpy array of shape (n_samples,) containing the labels ( integers in [0, 9] )
+    :param num_classes: number of classes
+
+    :return: 2D numpy array of shape (n_samples, num_classes) containing the one-hot encoded labels
+    """
+    one_hot = np.zeros((len(labels), num_classes))
+    one_hot[np.arange(len(labels)), labels] = 1
+    return one_hot
+
+
+def load_elegans_train(image_size=(28, 28), val_split=0.1):
+    """
+    Load the elegans training dataset and split into train/val sets.
+    - Folder: ../data/elegans/0_train -> no worm
+    - Folder: ../data/elegans/1_train -> worm
+
+    :param image_size: Image shape (width, height)
+    :param val_split: Fraction of training data to use as validation
+    :return: train_data, train_labels, val_data, val_labels
     """
     data_dir = "../data/elegans"
     images = []
     labels = []
 
-    for label in ["0", "1"]:
+    print("Loading ELEGANS training data...")
+    for label in ["0_train", "1_train"]:
         folder = os.path.join(data_dir, label)
         for filename in os.listdir(folder):
             path = os.path.join(folder, filename)
@@ -29,35 +42,58 @@ def load_elegans_data(image_size=(28, 28), test_split=0.1, val_split=0.1):
                 continue
             img = cv2.resize(img, image_size)
             img = img.astype(np.float32) / 255.0
-            images.append(img.flatten())  # Flatten like MNIST
-            labels.append(int(label))
+            images.append(img.flatten())
+            labels.append(int(label.split('_')[0]))  # Get 0 or 1
 
     images = np.array(images)
     labels = np.array(labels)
+    print(f"ELEGANS Training data loaded with {len(images)} images.")
 
-    # Shuffle data
-    indices = np.arange(len(images))
-    np.random.shuffle(indices)
-    images = images[indices]
-    labels = labels[indices]
+    # Split train/val
+    val_size = int(val_split * len(images))
+    val_data = images[:val_size]
+    val_labels = labels[:val_size]
+    train_data = images[val_size:]
+    train_labels = labels[val_size:]
 
-    # Split test
-    test_size = int(test_split * len(images))
-    val_size = int(val_split * (len(images) - test_size))
-
-    test_data = images[:test_size]
-    test_labels = labels[:test_size]
-    val_data = images[test_size:test_size + val_size]
-    val_labels = labels[test_size:test_size + val_size]
-    train_data = images[test_size + val_size:]
-    train_labels = labels[test_size + val_size:]
-
-    # one-hot encode (2 classes: [1, 0] and [0, 1])
     train_labels = one_hot_encode(train_labels, num_classes=2)
     val_labels = one_hot_encode(val_labels, num_classes=2)
-    test_labels = one_hot_encode(test_labels, num_classes=2)
 
-    return train_data, train_labels, val_data, val_labels, test_data, test_labels
+    return train_data, train_labels, val_data, val_labels
+
+
+def load_elegans_test(image_size=(28, 28)):
+    """
+    Load the elegans test dataset.
+    - Folder: ../data/elegans/0_test -> no worm
+    - Folder: ../data/elegans/1_test -> worm
+
+    :param image_size: Image shape (width, height)
+    :return: test_data, test_labels
+    """
+    data_dir = "../data/elegans"
+    images = []
+    labels = []
+
+    print("Loading ELEGANS testing data...")
+    for label in ["0_test", "1_test"]:
+        folder = os.path.join(data_dir, label)
+        for filename in os.listdir(folder):
+            path = os.path.join(folder, filename)
+            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+            if img is None:
+                continue
+            img = cv2.resize(img, image_size)
+            img = img.astype(np.float32) / 255.0
+            images.append(img.flatten())
+            labels.append(int(label.split('_')[0]))  # Get 0 or 1
+
+    images = np.array(images)
+    labels = np.array(labels)
+    print(f"ELEGANS Testing data loaded with {len(images)} images.")
+
+    test_labels = one_hot_encode(labels, num_classes=2)
+    return images, test_labels
 
 
 def read_idx_images(path):
@@ -73,6 +109,7 @@ def read_idx_images(path):
         image_data = image_data.reshape(num_images, rows * cols).astype(np.float32) / 255.0
     return image_data
 
+
 def read_idx_labels(path):
     """
     Read the idx file and return the data as a numpy array
@@ -84,19 +121,6 @@ def read_idx_labels(path):
         magic, num_labels = struct.unpack(">II", f.read(8))
         label_data = np.frombuffer(f.read(), dtype=np.uint8)
     return label_data
-
-def one_hot_encode(labels, num_classes=10):
-    """
-    One-hot encode the labels
-
-    :param labels: 1D numpy array of shape (n_samples,) containing the labels ( integers in [0, 9] )
-    :param num_classes: number of classes
-
-    :return: 2D numpy array of shape (n_samples, num_classes) containing the one-hot encoded labels
-    """
-    one_hot = np.zeros((len(labels), num_classes))
-    one_hot[np.arange(len(labels)), labels] = 1
-    return one_hot
 
 
 def load_mnist_train():
@@ -115,7 +139,7 @@ def load_mnist_train():
     data = read_idx_images('../data/MNIST/train-images.idx3-ubyte')
     labels = read_idx_labels('../data/MNIST/train-labels.idx1-ubyte')
     assert len(data) == len(labels)
-    print(f"Training data loaded with {len(data)} images.")
+    print(f"MNIST Training data loaded with {len(data)} images.")
 
     # one-hot encode the labels
     one_hot_labels = one_hot_encode(labels)
@@ -142,7 +166,7 @@ def load_mnist_test():
     data = read_idx_images('../data/MNIST/t10k-images.idx3-ubyte')
     labels = read_idx_labels('../data/t10k-labels.idx1-ubyte')
     assert len(data) == len(labels)
-    print(f"Testing data loaded with {len(data)} images.")
+    print(f"MNIST Testing data loaded with {len(data)} images.")
 
     # one-hot encode the labels
     one_hot_labels = one_hot_encode(labels)
@@ -178,27 +202,56 @@ def plot_sample_images(data, labels, num_images=10):
     plt.tight_layout()
     plt.show()
 
-def plot_results():
+
+def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
     """
-    Plot whatever curves we need to show that our model has learned
+    Plot learning curves:
     -- Training loss vs Validation loss
     -- Training accuracy vs Validation accuracy
-    -- Any other metric that we want to track
-    -- Confusion matrix etc
+    -- We will plot the confusio matrix in evaluate.py
+    -- Inference with test images should also be done in evaluate.py
 
+    :param train_losses: List of training losses
+    :param val_losses: List of validation losses
+    :param train_accuracies: List of training accuracies
+    :param val_accuracies: List of validation accuracies
+    :return: None
     """
-    ################################################################
-    # TODO:
-    #    1) Plot learning curves for training and validation loss
-    #    2) Plot learning curves for training and validation accuracy
-    #    3) Plot confusion matrix
-    #    4) Maybe an image or two with true labels and predictions
-    ################################################################
+
+    epochs = list(range(len(train_losses)))
+
+    # Plot Loss
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label='Training Loss')
+    plt.plot(epochs, val_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Loss Curve')
+    plt.legend()
+    plt.grid(True)
+
+    # Plot Accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_accuracies, label='Training Accuracy')
+    plt.plot(epochs, val_accuracies, label='Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.title('Accuracy Curve')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig('../outputs/loss_accuracy.png')
+    plt.show()
 
 
 if __name__ == '__main__':
     # train_data, train_label, _, _ = load_mnist_train()
     # plot_sample_images(train_data, train_label)
 
-    train_data, train_labels, val_data, val_labels, test_data, test_labels = load_elegans_data()
+    train_data, train_labels, val_data, val_labels = load_elegans_train()
+    test_data, test_labels = load_elegans_test()
     plot_sample_images(train_data, train_labels, num_images=10)
+    # plot_sample_images(val_data, val_labels, num_images=10) # TODO val class has only no worms pictures?
+    plot_sample_images(test_data, test_labels, num_images=10)
