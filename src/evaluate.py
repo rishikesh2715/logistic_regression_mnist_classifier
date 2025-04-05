@@ -56,7 +56,9 @@ def load_model(model_path, n_features, n_classes):
 
 def evaluate(model, X_test, Y_test_labels):
     Y_pred_onehot = model.predict(X_test)
-    Y_pred_labels = np.argmax(Y_pred_onehot, axis=0)
+    # Y_pred_labels = np.argmax(Y_pred_onehot, axis=0)
+    Y_pred_labels = model.predict(X_test)
+
 
     accuracy = np.mean(Y_pred_labels == Y_test_labels) * 100
     print(f"Test Accuracy: {accuracy:.2f}%")
@@ -66,7 +68,7 @@ def evaluate(model, X_test, Y_test_labels):
 
 
 def plot_confusion_matrix(cm):
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 10))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
     plt.title('Confusion Matrix')
     plt.xlabel('Predicted Label')
@@ -76,7 +78,6 @@ def plot_confusion_matrix(cm):
 
 
 def show_sample_predictions(X_test, Y_true, Y_pred, num_images=25):
-    import matplotlib.pyplot as plt
 
     # Pick misclassified & correctly classified indices
     correct_mask = Y_pred == Y_true
