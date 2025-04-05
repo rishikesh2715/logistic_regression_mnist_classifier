@@ -30,7 +30,7 @@ TODO:
 from model import LogisticRegression
 import utils
 
-def train_model(num_epochs=100, learning_rate=0.5):
+def train_model(num_epochs=500, learning_rate=0.5):
     # Load data
    X_train, Y_train, X_val, Y_val = utils.load_mnist_train()
 
