@@ -42,71 +42,70 @@ class LogisticRegression:
         self.weights, self.bias = self.initialize(n_features, n_classes)
         self.n_features = n_features
         self.n_classes = n_classes
+        self.velocity_w = np.zeros_like((self.weights))
+        self.velocity_b = np.zeros_like((self.bias))
 
-    # Sigmoid function
-    def sigmoid(self, z):
-        s = 1.0 / (1.0 + np.exp(-z))
-        return s
+    def softmax(self, z):
+        exp_z = np.exp(z - np.max(z, axis=0, keepdims=True))
+        return exp_z / np.sum(exp_z, axis=0, keepdims=True)
    
     # Initializing the Weights and bias
     def initialize(self, n_features, n_classes):
-        weights = np.zeros((n_features, n_classes))
+        # weights = np.zeros((n_features, n_classes))
+        weights = np.random.randn(n_features, n_classes) * 0.01
         bias = np.zeros(n_classes)
         return weights, bias
-   
-    def propagation(self, X, Y):
-        # X shape (n_features, n_samples)
-        # Y shape (n_classes, n_samples)
+
+
+    def propagation(self, X, Y, lambda_reg=0.01):
         n = X.shape[1]
 
-        # Forward pass
-        z = np.dot(self.weights.T, X) + self.bias.reshape(-1, 1)  # Reshape bias for broadcasting
-        A = self.sigmoid(z)
-        E = -1.0/n * np.sum(Y * np.log(A + 1e-8) + (1.0 - Y) * np.log(1.0 - A + 1e-8))
+        z = np.dot(self.weights.T, X) + self.bias.reshape(-1, 1)
+        A = self.softmax(z)
+        loss = -1.0 / n * np.sum(Y * np.log(A + 1e-8))
 
-        # Gradient computation
-        dw = 1.0/n * np.dot(X, (A - Y).T)
-        db = 1.0/n * np.sum(A - Y, axis=1)  # Sum across samples
+        # L2 regularization loss
+        l2_loss = lambda_reg / (2 * n) * np.sum(self.weights ** 2)
+        loss = loss + l2_loss
 
-        cost = np.squeeze(E)
-        grads = {"dw": dw, "db": db}
-    
-        return grads, cost
+        dw = 1.0 / n * np.dot(X, (A - Y).T)
+        db = 1.0 / n * np.sum(A - Y, axis=1)
+
+        return {"dw": dw, "db": db}, np.squeeze(loss)
+
    
     def train_step(self, X, Y, learning_rate):
         grads, cost = self.propagation(X, Y)
+
+        # Momentum update
+        beta = 0.9
+        self.velocity_w = beta * self.velocity_w - learning_rate * grads["dw"]
+        self.velocity_b = beta * self.velocity_b - learning_rate * grads["db"]
+
+        self.weights += self.velocity_w
+        self.bias += self.velocity_b
         
         # Update parameters
-        self.weights = self.weights - learning_rate * grads["dw"]
-        self.bias = self.bias - learning_rate * grads["db"]
+        # self.weights = self.weights - learning_rate * grads["dw"]
+        # self.bias = self.bias - learning_rate * grads["db"]
         
         return cost
    
+
     def predict(self, X):
-        # X shape should be (n_features, n_samples)
-        A = self.sigmoid(np.dot(self.weights.T, X) + self.bias.reshape(-1, 1))
-        Y_prediction = (A > 0.5).astype(int)
+        z = np.dot(self.weights.T, X) + self.bias.reshape(-1, 1)
+        A = self.softmax(z)
+        Y_prediction = np.argmax(A, axis=0)
         return Y_prediction
 
+
+
     def get_accuracy(self, X, Y):
-        predictions = self.predict(X)
-        # print("debuggin predictions: ", predictions)                 # Just here to help me debug and make sure my predictions are working correclty and to visualize them better
-        accuracy = 100.0 - np.mean(np.abs(predictions - Y)) * 100.0
-        # print("debugging accuracy: ", accuracy)                      # Just here to help me debug and make sure my accuracy is working correctly
+        Y_pred = self.predict(X)
+        Y_true = np.argmax(Y, axis=0)
+        accuracy = np.mean(Y_pred == Y_true) * 100.0
         return accuracy
     
-    # Uncomment the code below to just save the model base / untrained. 
-    """
-    def save_base_model(self, path):
-        if not path.endswith('.pkl'):
-            path = path + '.pkl'
-            
-        # Create a new instance with same dimensions but fresh initialization
-        fresh_model = LogisticRegression(self.n_features, self.n_classes)
-        
-        with open(path, 'wb') as f:
-            pickle.dump(fresh_model.__dict__, f)
-    """
 
     # Add save/load methods
     def save_trained_model(self, path):
