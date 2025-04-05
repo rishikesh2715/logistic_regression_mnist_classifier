@@ -253,5 +253,5 @@ if __name__ == '__main__':
     train_data, train_labels, val_data, val_labels = load_elegans_train()
     test_data, test_labels = load_elegans_test()
     plot_sample_images(train_data, train_labels, num_images=10)
-    # plot_sample_images(val_data, val_labels, num_images=10) # TODO val class has only no worms pictures?
+    plot_sample_images(val_data, val_labels, num_images=10) # TODO val class has only no worms pictures?
     plot_sample_images(test_data, test_labels, num_images=10)
