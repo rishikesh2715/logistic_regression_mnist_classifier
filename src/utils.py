@@ -41,6 +41,7 @@ def load_elegans_train(image_size=(28, 28), val_split=0.1):
             if img is None:
                 continue
             img = cv2.resize(img, image_size)
+            img = cv2.equalizeHist(img)  # Histogram equalization
             img = img.astype(np.float32) / 255.0
             images.append(img.flatten())
             labels.append(int(label.split('_')[0]))  # Get 0 or 1
@@ -48,6 +49,13 @@ def load_elegans_train(image_size=(28, 28), val_split=0.1):
     images = np.array(images)
     labels = np.array(labels)
     print(f"ELEGANS Training data loaded with {len(images)} images.")
+
+    # Shuffle before split
+    indices = np.arange(len(images))
+    np.random.shuffle(indices)
+
+    images = images[indices]
+    labels = labels[indices]
 
     # Split train/val
     val_size = int(val_split * len(images))
@@ -62,7 +70,7 @@ def load_elegans_train(image_size=(28, 28), val_split=0.1):
     return train_data, train_labels, val_data, val_labels
 
 
-def load_elegans_test(image_size=(28, 28)):
+def load_elegans_test(image_size=(28, 28), return_filenames=False):
     """
     Load the elegans test dataset.
     - Folder: ../data/elegans/0_test -> no worm
@@ -74,6 +82,7 @@ def load_elegans_test(image_size=(28, 28)):
     data_dir = "../data/elegans"
     images = []
     labels = []
+    filenames = []
 
     print("Loading ELEGANS testing data...")
     for label in ["0_test", "1_test"]:
@@ -84,15 +93,21 @@ def load_elegans_test(image_size=(28, 28)):
             if img is None:
                 continue
             img = cv2.resize(img, image_size)
+            img = cv2.equalizeHist(img)  # Histogram equalization
             img = img.astype(np.float32) / 255.0
             images.append(img.flatten())
             labels.append(int(label.split('_')[0]))  # Get 0 or 1
+            if return_filenames:
+                filenames.append(filename)
 
     images = np.array(images)
     labels = np.array(labels)
     print(f"ELEGANS Testing data loaded with {len(images)} images.")
 
     test_labels = one_hot_encode(labels, num_classes=2)
+
+    if return_filenames:
+        return images, test_labels, filenames
     return images, test_labels
 
 
@@ -203,7 +218,7 @@ def plot_sample_images(data, labels, num_images=10):
     plt.show()
 
 
-def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
+def plot_results(train_losses, val_losses, train_accuracies, val_accuracies, title_suffix=''):
     """
     Plot learning curves:
     -- Training loss vs Validation loss
@@ -227,7 +242,7 @@ def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
     plt.plot(epochs, val_losses, label='Validation Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.title('Loss Curve')
+    plt.title(f'Loss Curve - {title_suffix}')
     plt.legend()
     plt.grid(True)
 
@@ -237,21 +252,26 @@ def plot_results(train_losses, val_losses, train_accuracies, val_accuracies):
     plt.plot(epochs, val_accuracies, label='Validation Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy (%)')
-    plt.title('Accuracy Curve')
+    plt.title(f'Accuracy Curve - {title_suffix}')
     plt.legend()
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig('../outputs/loss_accuracy.png')
+    plt.savefig(f'../outputs/loss_accuracy_{title_suffix}.png')
     plt.show()
 
 
 if __name__ == '__main__':
-    # train_data, train_label, _, _ = load_mnist_train()
-    # plot_sample_images(train_data, train_label)
+    # Test the MNIST loading and plotting functions
+    train_data, train_label, _, _ = load_mnist_train()
+    plot_sample_images(train_data, train_label)
 
+    # Test the ELEGANS loading and plotting functions
+    # First plot is train MNIST data
+    # Second plot is validation MNIST data
+    # Third plot is test MNIST data
     train_data, train_labels, val_data, val_labels = load_elegans_train()
     test_data, test_labels = load_elegans_test()
     plot_sample_images(train_data, train_labels, num_images=10)
-    plot_sample_images(val_data, val_labels, num_images=10) # TODO val class has only no worms pictures?
+    plot_sample_images(val_data, val_labels, num_images=10) 
     plot_sample_images(test_data, test_labels, num_images=10)
