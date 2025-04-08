@@ -177,6 +177,12 @@ The method performs the above information by doing the following:
 - Applies the softmax activation to obtain class probabilities.
 - Use `np.argmax` to selct thge most probable class for each sample.
 
+##### Y Equation - (Probability of being within a given classification)
+
+```math
+y^{(n)}_{j} = P(C_{j} | \phi{(\underline{x}^{(n)})})
+```
+
 **Code Below:**
 ```
 def predict(self, X):
