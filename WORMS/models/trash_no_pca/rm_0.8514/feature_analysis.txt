@@ -1,0 +1,23 @@
+=== FEATURE ANALYSIS ===
+
+Total Features: 5818
+
+Top 10 Most Discriminative Features:
+Feature_5813: Class0=2366.421 vs Class1=2510.846
+Feature_5812: Class0=1972.808 vs Class1=2092.959
+Feature_5814: Class0=999.543 vs Class1=913.118
+Feature_5817: Class0=786.938 vs Class1=709.314
+Feature_5811: Class0=1156.012 vs Class1=1228.678
+Feature_5809: Class0=594.168 vs Class1=526.101
+Feature_5808: Class0=399.745 vs Class1=338.097
+Feature_5816: Class0=1125.304 vs Class1=1089.138
+Feature_5810: Class0=127.471 vs Class1=122.001
+Feature_5815: Class0=672.589 vs Class1=670.747
+
+=== TUNING RECOMMENDATIONS ===
+1. Regularization (C):
+   Try values between 0.1 and 10
+
+2. Feature Engineering:
+   - Try orientations=16 for HOG
+   - Try LBP radius R=2
