@@ -1,10 +1,8 @@
 from model import LogisticRegression
 import utils
 import argparse
+import time 
 
-from model import LogisticRegression
-import utils
-import argparse
 
 def train_model(X_train, Y_train, X_val, Y_val, num_epochs=300, learning_rate=0.5, model_path='../models/model.pkl', plot_title=''):
     """
@@ -36,7 +34,10 @@ def train_model(X_train, Y_train, X_val, Y_val, num_epochs=300, learning_rate=0.
     X_val = X_val.T
     Y_val = Y_val.T
 
+    start_time = time.time()
     for epoch in range(num_epochs):
+        # start time
+
         train_loss = model.train_step(X_train, Y_train, learning_rate)
 
         # Validation
@@ -52,7 +53,9 @@ def train_model(X_train, Y_train, X_val, Y_val, num_epochs=300, learning_rate=0.
         if epoch % 10 == 0:
             print(f"Epoch {epoch}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
             print(f"Train Accuracy: {train_acc:.2f}%, Val Accuracy: {val_acc:.2f}%")
-
+    
+    end_time = time.time()
+    print(f"Training completed in {end_time - start_time:.2f} seconds.")
     # Save and plot
     model.save_trained_model(model_path)
     utils.plot_results(train_losses, val_losses, train_accuracies, val_accuracies, title_suffix=plot_title)

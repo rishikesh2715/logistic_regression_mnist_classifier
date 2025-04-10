@@ -1,8 +1,10 @@
 # run_inference_gui.py
-import tkinter as tk
 from tkinter import messagebox
 from inference_scripts.elegans_inference import run_elegans_gui
-# from inference_scripts.mnist_inference import run_mnist_gui  # <‑‑ when ready
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import threading
+from inference_scripts.mnist_inference import run_mnist_inference
 
 class MainGUI(tk.Tk):                 
     def __init__(self):
@@ -15,11 +17,10 @@ class MainGUI(tk.Tk):
                   font=("Arial", 14), width=20,
                   command=self.run_elegans).pack(pady=10)
 
-        tk.Button(self, text="Test  MNIST (coming soon)",
-                  font=("Arial", 14), width=20,
-                  state=tk.DISABLED  # enable when mnist script ready
-                  # command=self.run_mnist
-                  ).pack(pady=10)
+        tk.Button(self, text="Test  MNIST",
+          font=("Arial", 14), width=20,
+          command=self.run_mnist).pack(pady=10)
+
 
         tk.Button(self, text="Quit", font=("Arial", 12),
                   command=self.destroy).pack(pady=20)
@@ -29,10 +30,20 @@ class MainGUI(tk.Tk):
         run_elegans_gui()
         self.deiconify()
 
-    # def run_mnist(self):
-    #     self.withdraw()
-    #     run_mnist_gui()
-    #     self.deiconify()
+    def run_mnist(self):
+        image_folder = filedialog.askdirectory(title="Select MNIST Test Image Folder")
+        if not image_folder:
+            messagebox.showwarning("No Folder Selected", "Please select a folder containing MNIST images.")
+            return
+        
+        model_file = filedialog.askopenfilename(title="Select Trained Model", filetypes=[("Pickle Files", "*.pkl")])
+        if not model_file:
+            messagebox.showwarning("No Model Selected", "Please select a trained model file.")
+            return
+        
+        self.withdraw()  
+        run_mnist_inference(image_folder, model_file) 
+        self.deiconify()  
 
 if __name__ == "__main__":
     MainGUI().mainloop()

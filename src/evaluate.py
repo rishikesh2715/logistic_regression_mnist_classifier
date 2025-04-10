@@ -8,6 +8,7 @@ import utils
 from sklearn.metrics import confusion_matrix
 import argparse
 import re
+import time
 
 def load_test_images(dataset):
     """
@@ -173,6 +174,7 @@ def save_predictions_to_excel(filenames, Y_pred, dataset):
 
 
 if __name__ == '__main__':
+    time_start = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, choices=['mnist', 'elegans'], default='mnist', help='Dataset to evaluate')
     args = parser.parse_args()
@@ -186,6 +188,9 @@ if __name__ == '__main__':
     print(f"\n=== Evaluation Configuration ===")
     print(f"Dataset       : {dataset.upper()}")
     print(f"Model Path    : {model_path}\n")
+
+    time_end = time.time()
+    print(f"Evaluation completed in {time_end - time_start:.2f} seconds.")
 
     plot_confusion_matrix(cm, dataset)
     show_sample_predictions(X_test, Y_test_labels, Y_pred_labels, dataset)
