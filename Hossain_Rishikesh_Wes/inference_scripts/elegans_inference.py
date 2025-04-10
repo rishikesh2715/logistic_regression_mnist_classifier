@@ -127,15 +127,23 @@ class InferenceGUI(tk.Tk):
             except Exception as e:
                 print("Error on", p, ":", e)
 
-        # Excel output
+        # ─── Excel output  (save into <project‑root>/outputs) ───────────────
         df = pd.DataFrame(records, columns=["filename", "label"])
         df.loc[len(df)] = ["", ""]                       # blank separator
-        for k in (0,1):
+        for k in (0, 1):
             df.loc[len(df)] = [f"total {k}", counts[k]]
-        out = os.path.join(os.path.dirname(self.model.path),
-                           f"elegans_predictions_{len(records)}.xlsx")
-        df.to_excel(out, index=False)
-        messagebox.showinfo("Done", f"Excel saved:\n{out}")
+
+        # project‑root = one level above  inference_scripts/
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        out_folder   = os.path.join(project_root, "outputs")
+        os.makedirs(out_folder, exist_ok=True)
+
+        out_path = os.path.join(out_folder, "prediction_elegans.xlsx")
+        df.to_excel(out_path, index=False)
+
+        messagebox.showinfo("Done",
+                            f"Excel saved to:\n{out_path}")
+        print("Excel saved to:", out_path)
         self.destroy()
 
 # ──────────────────────────────────────────────────────────────
