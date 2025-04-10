@@ -1,98 +1,157 @@
-# inference_scripts/elegans_inference.py
-import os, sys, cv2, numpy as np, pandas as pd, tkinter as tk
+import os, cv2, numpy as np, pandas as pd, tkinter as tk
 from tkinter import filedialog, messagebox
-from joblib import load
 from skimage.feature import hog, local_binary_pattern
 
-# ---------------- preprocessing & features ---------------- #
+# optional back‑ends
+try:                       from joblib import load as jl_load
+except ImportError:        jl_load = None
+try:                       import onnxruntime as ort
+except ImportError:        ort = None
+
+# ──────────────────────────────────────────────────────────────
+# 1.  Pre‑processing & features  (unchanged)
+# ──────────────────────────────────────────────────────────────
 def preprocess(img):
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    img = clahe.apply(img)
-    img = cv2.medianBlur(img, 3)
+    clahe = cv2.createCLAHE(2.0, (8, 8)); img = clahe.apply(img)
+    img   = cv2.medianBlur(img, 3)
     edges = cv2.Canny(img, 50, 150)
     return cv2.addWeighted(img, 0.8, edges, 0.2, 0)
 
 def extract_features(img):
-    hog_feats = hog(img, orientations=12,
-                    pixels_per_cell=(8,8),
-                    cells_per_block=(2,2),
-                    visualize=False, feature_vector=True)
-    lbp = local_binary_pattern(img, P=8, R=1, method="uniform")
-    lbp_hist,_ = np.histogram(lbp, bins=10, range=(0,10))
-    lbp_hist = lbp_hist.astype(float); lbp_hist /= (lbp_hist.sum()+1e-7)
-    return np.concatenate([hog_feats, lbp_hist]).astype(np.float32)
+    hog_feat = hog(img, 12, (8, 8), (2, 2), visualize=False, feature_vector=True)
+    lbp      = local_binary_pattern(img, 8, 1, "uniform")
+    hist, _  = np.histogram(lbp, bins=10, range=(0, 10))
+    hist     = hist.astype(float); hist /= hist.sum() + 1e-7
+    return np.concatenate([hog_feat, hist]).astype(np.float32)
 
-# ---------------- helper to predict one image -------------- #
-def predict(model, img_path):
+# ──────────────────────────────────────────────────────────────
+# 2.  Model loader that handles  .npz  •  .onnx  •  .joblib
+# ──────────────────────────────────────────────────────────────
+class WormModel:
+    def __init__(self, path):
+        self.path = path
+        self.ext  = os.path.splitext(path)[1].lower()
+
+        if self.ext == ".npz":                         # ─── NumPy weights ───
+            d = np.load(path)
+            self.W = d["W"]; self.b = float(d["b"])
+            self.backend = "np"
+
+        elif self.ext == ".onnx":                      # ─── ONNX Runtime ────
+            if ort is None:
+                raise RuntimeError("onnxruntime not installed")
+            sess  = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+            self.sess, self.in_name, self.out_name = sess, sess.get_inputs()[0].name, sess.get_outputs()[0].name
+            self.backend = "onnx"
+
+        else:                                          # ─── joblib / pickle ─
+            if jl_load is None:
+                raise RuntimeError("joblib not installed")
+            self.clf = jl_load(path)
+            self.backend = "sk"
+
+    # ---------------------------------------------------------
+    def predict(self, feat_vec):
+        """feat_vec shape (1, n_features)  →  (label:int, prob:float|None)"""
+        if self.backend == "np":
+            p = 1 / (1 + np.exp(-(feat_vec @ self.W + self.b)))[0]
+            return int(p >= 0.5), float(p)
+
+        elif self.backend == "onnx":
+            out = self.sess.run([self.out_name],
+                                {self.in_name: feat_vec.astype(np.float32)})[0]
+            out = np.asarray(out)
+            if out.ndim == 1: out = out[np.newaxis, :]
+            lab = int(out.argmax(1)[0]); prob = float(out[0, lab])
+            return lab, prob
+
+        else:  # scikit‑learn
+            lab  = int(self.clf.predict(feat_vec)[0])
+            prob = float(self.clf.predict_proba(feat_vec)[0][lab]) \
+                   if hasattr(self.clf, "predict_proba") else None
+            return lab, prob
+
+# ──────────────────────────────────────────────────────────────
+# 3.  Single‑image helper
+# ──────────────────────────────────────────────────────────────
+def predict_image(model, img_path):
     g = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-    if g is None:
-        raise ValueError(f"Cannot read {img_path}")
+    if g is None: raise ValueError(f"Cannot read {img_path}")
     g = preprocess(g)
-    feat = extract_features(g).reshape(1,-1)
-    pred = model.predict(feat)[0]
-    proba = model.predict_proba(feat)[0][int(pred)] if hasattr(model,"predict_proba") else None
-    return int(pred), proba
+    feat = extract_features(g).reshape(1, -1)
+    return model.predict(feat)
 
-def overlay_and_show(img_path, pred, proba):
-    img = cv2.imread(img_path)
-    if img is None: return
-    txt = f"Pred: {pred}"
-    if proba is not None: txt += f" ({proba*100:.1f}%)"
-    cv2.putText(img, txt, (10,30), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                (0,255,0), 2)
-    cv2.imshow("Prediction", img); cv2.destroyAllWindows()
+# ──────────────────────────────────────────────────────────────
+# 4.  GUI
+# ──────────────────────────────────────────────────────────────
+def overlay_and_show(img_path, pred, prob):
+    img = cv2.imread(img_path);  txt = f"Pred: {pred}"
+    if prob is not None: txt += f" ({prob*100:.1f}%)"
+    cv2.putText(img, txt, (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+    cv2.imshow("Prediction", img); cv2.waitKey(1)
 
-# ---------------- GUI wrapper ---------------- #
-def run_elegans_gui():
+class InferenceGUI(tk.Tk):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+        self.title("C. elegans inference")
+        self.geometry("400x220")
+        tk.Label(self, text="Select inference method:", font=("Arial",14)).pack(pady=20)
+        tk.Button(self, text="Individual images", font=("Arial",12),
+                  command=self.pick_images).pack(pady=5, fill=tk.X, padx=60)
+        tk.Button(self, text="Directory of images", font=("Arial",12),
+                  command=self.pick_dir).pack(pady=5, fill=tk.X, padx=60)
+        tk.Button(self, text="Quit", font=("Arial",12),
+                  command=self.destroy).pack(pady=15)
+
+    def pick_images(self):
+        files = filedialog.askopenfilenames(title="Select PNG images",
+                                            filetypes=[("PNG","*.png")])
+        if files: self.run(files)
+
+    def pick_dir(self):
+        d = filedialog.askdirectory(title="Select folder of PNG images")
+        if not d: return
+        files = [os.path.join(d,f) for f in os.listdir(d) if f.lower().endswith(".png")]
+        if files: self.run(files)
+        else: messagebox.showerror("No PNG","No .png images found in that folder.")
+
+    def run(self, paths):
+        records, counts = [], {0:0, 1:0}
+        for p in paths:
+            try:
+                lab, prob = predict_image(self.model, p)
+                records.append((os.path.basename(p), lab))
+                counts[lab] += 1
+                overlay_and_show(p, lab, prob)
+            except Exception as e:
+                print("Error on", p, ":", e)
+
+        # Excel output
+        df = pd.DataFrame(records, columns=["filename", "label"])
+        df.loc[len(df)] = ["", ""]                       # blank separator
+        for k in (0,1):
+            df.loc[len(df)] = [f"total {k}", counts[k]]
+        out = os.path.join(os.path.dirname(self.model.path),
+                           f"elegans_predictions_{len(records)}.xlsx")
+        df.to_excel(out, index=False)
+        messagebox.showinfo("Done", f"Excel saved:\n{out}")
+        self.destroy()
+
+# ──────────────────────────────────────────────────────────────
+def run_gui():
     root = tk.Tk(); root.withdraw()
-
-    # prompt model
-    model_path = filedialog.askopenfilename(
-        title="Select trained .joblib model",
-        filetypes=[("Joblib","*.joblib"),("All","*.*")]
+    mdl = filedialog.askopenfilename(
+        title="Select model (.npz  / .onnx  / .joblib)",
+        filetypes=[("Model files","*.npz *.onnx *.joblib"), ("All","*.*")]
     )
-    if not model_path:
-        messagebox.showinfo("Info","Model not selected."); return
+    if not mdl: return
     try:
-        model = load(model_path)
+        model = WormModel(mdl)
     except Exception as e:
-        messagebox.showerror("Error", f"Could not load model:\n{e}"); return
+        messagebox.showerror("Error", f"Could not load model:\n{e}")
+        return
+    InferenceGUI(model).mainloop()
 
-    # prompt image directory
-    img_dir = filedialog.askdirectory(title="Select directory of PNG test images")
-    if not img_dir:
-        messagebox.showinfo("Info","Directory not selected."); return
-    img_files = [os.path.join(img_dir,f) for f in os.listdir(img_dir)
-                 if f.lower().endswith(".png")]
-    if not img_files:
-        messagebox.showerror("Error","No .png files found."); return
-
-    # run inference
-    results = []
-    counts = {0:0, 1:0}
-    for p in img_files:
-        try:
-            pred, proba = predict(model, p)
-            results.append((os.path.basename(p), pred))
-            counts[pred] += 1
-            overlay_and_show(p, pred, proba)
-        except Exception as e:
-            print("Error on", p, ":", e)
-
-    # save to Excel
-    df = pd.DataFrame(results, columns=["filename","label"])
-    df.loc[len(df)] = ["", ""]  # blank row
-    for lbl in sorted(counts):
-        df.loc[len(df)] = [f"Total label {lbl}", counts[lbl]]
-
-    excel_path = os.path.join(
-        os.path.dirname(model_path),
-        f"elegans_predictions_{len(results)}.xlsx"
-    )
-    df.to_excel(excel_path, index=False)
-    messagebox.showinfo("Done", f"Excel saved:\n{excel_path}")
-    print("Excel saved to:", excel_path)
-
-# allow CLI run too
 if __name__ == "__main__":
-    run_elegans_gui()
+    run_gui()
