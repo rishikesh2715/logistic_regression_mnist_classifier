@@ -119,25 +119,20 @@ pip install -r requirements.txt
 
 ### MNIST Training & Evaluation
 
-1. **Enter** into the `src/` directory using the following command.
+1. **Enter** into the `Hossain_Rishikesh_Wes/` directory using the following command.
 ```bash
-cd src
+cd Hossain_Rishikesh_Wes
 ```
 
-2. **Train the model** using `train.py` script. The trained model will be saved in the `models/` directory.
+2. **Train the model** using `run_inference_gui.py` script. The trained model will be saved in the `models/` directory.
 ```bash
-python train.py
+python run_inference_gui.py
 ```
 
 3. **Results** will be saved in an Excel file with filename `predictions.xlsx` in the `outputs/` directory.
 ```bash
 outputs/
-└── predictions.xlsx
-```
-
-4. **Evaluate the model** using `evaluate.py` script. The trained model will be loaded and evaluated using the script.
-```bash
-python evaluate.py
+└── predictions_mnist.xlsx
 ```
 
 ### Elegans Worms Training & Evaluation
@@ -152,7 +147,11 @@ cd Hossain_Rishikesh_Wes
 python run_inference_gui.py
 ```
 
-3. **Evaluation** should be displayed after running through step 2!
+3. **Results** will be saved in an Excel file with filename `predictions.xlsx` in the `outputs/` directory.
+```bash
+outputs/
+└── elegans_predictions.xlsx
+```
 
 ## Author(s)
 
