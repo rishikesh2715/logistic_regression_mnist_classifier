@@ -1,0 +1,5 @@
+{
+  "train_time_sec": 44.79007267951965,
+  "val_accuracy": 0.8610216290842154,
+  "feature_dim": 5818
+}

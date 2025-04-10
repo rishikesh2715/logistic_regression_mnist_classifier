@@ -1,6 +1,6 @@
 # run_inference_gui.py
 from tkinter import messagebox
-from inference_scripts.elegans_inference import run_elegans_gui
+from inference_scripts.elegans_inference import run_gui
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
@@ -27,7 +27,7 @@ class MainGUI(tk.Tk):
 
     def run_elegans(self):
         self.withdraw()
-        run_elegans_gui()
+        run_gui()
         self.deiconify()
 
     def run_mnist(self):
