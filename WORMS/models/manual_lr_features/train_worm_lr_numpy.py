@@ -122,7 +122,7 @@ def main():
     model = LogisticRegressionNP(X.shape[1], lr=0.1)
 
     t0 = time.time()
-    hist = model.fit(Xtr, ytr, Xte, yte, epochs=100)
+    hist = model.fit(Xtr, ytr, Xte, yte, epochs=200)
     train_time = time.time() - t0
 
     # testing time
@@ -173,7 +173,7 @@ def main():
         add_row(tbl, "Image preprocessing",
                 "CLAHE → median‑blur(3) → Canny edges blended (0.8/0.2)")
         add_row(tbl, "Logistic regression parameters",
-                f"learning‑rate=0.1, epochs=100, batch=256, "
+                f"learning‑rate=0.1, epochs=200, batch=256, "
                 f"weights init ~𝒩(0,0.01)")
         add_row(tbl, "Optimizer",
                 "Stochastic Gradient Descent (hand‑coded)")
@@ -198,7 +198,7 @@ def main():
             f.write(f"Data splits: Train {len(Xtr)}, Validation {len(Xte)}\n")
             f.write(f"Input image size: {img_sz[0]}×{img_sz[1]}\n")
             f.write("Preprocessing: CLAHE, median‑blur, Canny blend\n")
-            f.write("Parameters: lr=0.1, epochs=100, batch=256\n")
+            f.write("Parameters: lr=0.1, epochs=200, batch=256\n")
             f.write("Optimizer: SGD (NumPy implementation)\n\n")
             f.write("B) Confusion matrix\n")
             f.write(f"{cm}\n\n")
