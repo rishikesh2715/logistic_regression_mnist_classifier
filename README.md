@@ -87,24 +87,77 @@ train_label               val_label
 - Metrics: Accuracy, Confusion Matrix, Execution Time
 - Output: Predictions saved in an Excel file
 
+## Installation
+
+1. **Create a virtual environment** to hold all libraries associated with project. (Code below is best practice. **However**, _note this can be done without the virtual environment, but may result in conflicts._)
+```bash
+python -m venv C:\path\to\new\virtual\environment
+```
+
+##### OR
+
+If the **virtualenv** library is already installed:
+```bash
+virtualenv env
+```
+
+2. **Install all required libraries** from the requirements.txt file in the root directory.
+```bash
+python install -r requirements.txt
+```
+
+##### OR
+
+If **pip** is already installed you can run the following:
+```bash
+pip install -r requirements.txt
+```
+
+3. **YAY** now all libraries should be successfully installed for use of the project!
+
 ## Usage
 
-1. **Train the model** using `main.py` script. The trained model will be saved in the `models/` directory.
+### MNIST Training & Evaluation
+
+1. **Enter** into the `src/` directory using the following command.
 ```bash
-python main.py
+cd src
 ```
-2. **Results** will be saved in an Excel file with filename `predictions.xlsx` in the `outputs/` directory.
+
+2. **Train the model** using `train.py` script. The trained model will be saved in the `models/` directory.
+```bash
+python train.py
+```
+
+3. **Results** will be saved in an Excel file with filename `predictions.xlsx` in the `outputs/` directory.
 ```bash
 outputs/
 └── predictions.xlsx
 ```
 
+4. **Evaluate the model** using `evaluate.py` script. The trained model will be loaded and evaluated using the script.
+```bash
+python evaluate.py
+```
+
+### Elegans Worms Training & Evaluation
+
+1. **Enter** into the `Hossain_Rishikesh_Wes` by running the following command.
+```bash
+cd Hossain_Rishikesh_Wes
+```
+
+2. **Test** the Elegans model by running the following command inside the `Hossain_Rishikesh_Wes/` directory.
+```bash
+python run_inference_gui.py
+```
+
+3. **Evaluation** should be displayed after running through step 2!
 
 ## Author(s)
 
 [![Project Authors](https://contrib.rocks/image?repo=rishikesh2715/logistic_regression_mnist_classifier&max=300)](https://github.com/rishikesh2715/logistic_regression_mnist_classifier/graphs/contributors)
 
-Samir Hossain -- samir.hossain@ttu.edu
 
 
 
