@@ -20,7 +20,7 @@ python run_inference_gui.py
 ```
 
 ### 3. Select Model and Dataset
-- Choose the dataset image folder first.
+- Choose the dataset image folder.
 - Select the model you want to use for inference.
 
 ### 4. Saved Predictions
