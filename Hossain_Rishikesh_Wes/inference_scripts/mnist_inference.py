@@ -62,6 +62,7 @@ def save_predictions_to_excel(filenames, preds, output_path='predictions_output.
     })
 
     final_df = pd.concat([df, filler, summary], ignore_index=True)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     final_df.to_excel(output_path, index=False)
     print(f"Saved predictions with summary to: {output_path}")
 
@@ -78,7 +79,7 @@ def run_mnist_inference(test_path, model_path):
     preds = model.predict(X_test)
 
     # Save predictions to Excel
-    save_predictions_to_excel(filenames, preds, output_path=f'../outputs/predictions_mnist.xlsx')
+    save_predictions_to_excel(filenames, preds, output_path=f'outputs/predictions_mnist.xlsx')
 
 
 
@@ -99,7 +100,7 @@ if __name__ == '__main__':
     end_time = time.time()
 
     print(f"Inference Time: {end_time - start_time:.2f} seconds")
-    save_predictions_to_excel(filenames, preds, f'../outputs/predictions_{dataset}.xlsx')
+    save_predictions_to_excel(filenames, preds, f'outputs/predictions_{dataset}.xlsx')
     # plot_sample_predictions(X_test, preds, filenames, dataset)
 
     print("\n=== Inference Completed ===")
