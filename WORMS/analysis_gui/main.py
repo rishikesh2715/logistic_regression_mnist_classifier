@@ -4,6 +4,7 @@ from analysis_scripts.lbp_analysis import LBPAnalysisGUI
 from analysis_scripts.histogram_analysis import HistogramAnalysisGUI
 from analysis_scripts.binarization_analysis import BinarizationAnalysisGUI
 from analysis_scripts.frequency_analysis import FrequencyAnalysisGUI
+from analysis_scripts.pipeline_analysis import PipelineGUI
 
 def open_hog_analysis(main_window):
     # Hide main window and open HOG analysis window
@@ -29,6 +30,10 @@ def open_frequency_analysis(main_window):
     # Hide main window and open Frequency analysis window
     main_window.withdraw()
     FrequencyAnalysisGUI(main_window)
+
+def open_pipeline(main_window):
+    main_window.withdraw()
+    PipelineGUI()
 
 if __name__ == '__main__':
     root = tk.Tk()
@@ -88,4 +93,14 @@ if __name__ == '__main__':
     )
     btn_frequency.pack(pady=10)
     
+    # Button for Pipeline Analysis
+    btn_pipeline = tk.Button(
+        root, 
+        text="Pipeline Analysis", 
+        command=lambda: open_pipeline(root), 
+        font=("Arial", 16), 
+        width=20
+    )
+    btn_pipeline.pack(pady=10)
+
     root.mainloop()

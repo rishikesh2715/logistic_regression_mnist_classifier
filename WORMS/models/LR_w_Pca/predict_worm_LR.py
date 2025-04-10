@@ -5,7 +5,6 @@ from joblib import load
 import tkinter as tk
 from tkinter import filedialog
 import os
-from sklearn.decomposition import PCA  # Only needed for type clarity
 
 def preprocess(img):
     """Identical preprocessing to training."""
@@ -31,24 +30,22 @@ def extract_features(img):
 
 def predict_image(model_path, image_path):
     """
-    Load the saved model (a dict containing 'classifier' and 'pca') and predict on the given image.
-    The PCA transformation is applied to the extracted features before classification.
+    Load the saved model (a dict containing 'classifier') and predict on the given image.
+    The extracted features are directly fed to the classifier.
     """
     model_data = load(model_path)
     classifier = model_data["classifier"]
-    pca = model_data["pca"]
     
     # Load the image
     img = cv2.imread(image_path)
     if img is None:
         raise ValueError("Could not load image. Check the file path.")
     
-    # Extract features and apply PCA transformation
+    # Extract features (PCA is not applied)
     features = extract_features(img)
-    features_pca = pca.transform([features])
     
     # Predict class probabilities
-    proba = classifier.predict_proba(features_pca)[0]
+    proba = classifier.predict_proba([features])[0]
     return proba
 
 def main():
