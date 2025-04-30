@@ -21,16 +21,22 @@ def preprocess(img):
     img = cv2.equalizeHist(img)              # simple contrast stretch
     return img                                # keep 101×101
 
-# ---------- tiny CNN architecture (must match training) ----------
+# ---------- tiny CNN architecture (matches training) ----------
 def build_cnn():
-    return nn.Sequential(
-        nn.Conv2d(1,16,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),
-        nn.Conv2d(16,32,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),
-        nn.Conv2d(32,64,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),
-        nn.Flatten(),
-        nn.Linear(64*12*12,128), nn.ReLU(),
-        nn.Linear(128,2)
-    )
+    class SmallCNN(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.net = torch.nn.Sequential(
+                torch.nn.Conv2d(1,16,3,padding=1),  torch.nn.ReLU(), torch.nn.MaxPool2d(2),
+                torch.nn.Conv2d(16,32,3,padding=1), torch.nn.ReLU(), torch.nn.MaxPool2d(2),
+                torch.nn.Conv2d(32,64,3,padding=1), torch.nn.ReLU(), torch.nn.MaxPool2d(2),
+                torch.nn.Flatten(),
+                torch.nn.Linear(64*12*12,128), torch.nn.ReLU(),
+                torch.nn.Linear(128,2)
+            )
+        def forward(self, x):            # just delegate
+            return self.net(x)
+    return SmallCNN()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
