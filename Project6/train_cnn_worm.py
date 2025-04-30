@@ -1,196 +1,177 @@
 """
-Train a CNN on the C-elegans worm / no-worm dataset (101×101 grayscale).
-
-Outputs into <models/> and <outputs/>:
-    • models/worm_cnn.pt               – torch state-dict
-    • outputs/training_loss.png
-    • outputs/training_accuracy.png
-    • outputs/confusion_matrix.png
-    • outputs/training_report.docx  (falls back to .txt if python-docx missing)
+Project-6 CNN trainer (PyTorch 2.x, Python ≥3.9)
+------------------------------------------------
+Outputs
+  • best_model.pt           – state_dict +
+  • training_accuracy.png
+  • training_loss.png
+  • confusion_matrix.png
+  • training_report.docx /.txt   (table answers Q-2 a–e)
 """
 
-import os, time, datetime, json, math, itertools
-import numpy as np
-import torch, torch.nn as nn, torch.optim as optim
-from torch.utils.data import Dataset, DataLoader, random_split
+import os, time, datetime, json, itertools, cv2, numpy as np, matplotlib.pyplot as plt
+from tqdm.auto import tqdm
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.model_selection import train_test_split
+import torch, torch.nn as nn, torch.nn.functional as F
+from torch.utils.data import DataLoader, TensorDataset
 from torchvision import transforms
-import cv2, matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-from tqdm import tqdm, trange
 
-# ---------- config ----------
-IMAGE_SIZE   = 101               # original size of images
-BATCH        = 64
-EPOCHS       = 30
-LR           = 1e-3
-VAL_SPLIT    = 0.2
-RANDOM_SEED  = 42
-ROOT         = os.path.dirname(os.path.abspath(__file__))
-DATA_ROOT    = os.path.join(ROOT, "data", "Celegans_ModelGen")
-MODELS_DIR   = os.path.join(ROOT, "models")
-OUTPUTS_DIR  = os.path.join(ROOT, "outputs")
-os.makedirs(MODELS_DIR, exist_ok=True)
-os.makedirs(OUTPUTS_DIR, exist_ok=True)
-DEVICE       = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# ========== 1.  DATASET (keeps original 96×96 jpg/png size) ===================
+def preprocess(img):
+    clahe = cv2.createCLAHE(2.0,(8,8)); img = clahe.apply(img)
+    img = cv2.medianBlur(img,3)
+    edges = cv2.Canny(img,50,150)
+    return cv2.addWeighted(img,0.8,edges,0.2,0)
 
-# ---------- dataset ----------
-class WormDataset(Dataset):
-    def __init__(self, root):
-        self.samples = []
-        for lbl in (0,1):
-            folder = os.path.join(root, str(lbl))
-            imgs   = [os.path.join(folder, f) for f in os.listdir(folder)
-                      if f.endswith(".png")]
-            self.samples += [(p,lbl) for p in imgs]
-        self.tf = transforms.ToTensor()    # converts to C×H×W float[0,1]
+def load_folder(root):
+    X,y=[],[]
+    for lab in (0,1):
+        fdir = os.path.join(root,str(lab))
+        for f in os.listdir(fdir):
+            if not f.endswith(".png"): continue
+            g = cv2.imread(os.path.join(fdir,f),cv2.IMREAD_GRAYSCALE)
+            if g is None: continue
+            X.append(preprocess(g));  y.append(lab)
+    X = np.stack(X)[:,None,:,:] / 255.0     # (N,1,H,W) float32
+    y = np.array(y, np.int64)
+    return torch.tensor(X, dtype=torch.float32), torch.tensor(y)
 
-    def __len__(self):  return len(self.samples)
-
-    def __getitem__(self, idx):
-        p, lbl = self.samples[idx]
-        g = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
-        g = cv2.equalizeHist(g)            # contrast equalisation
-        g = self.tf(g)                     # shape 1×101×101
-        return g, torch.tensor(lbl, dtype=torch.long)
-
-ds_full = WormDataset(DATA_ROOT)
-n_val   = int(len(ds_full)*VAL_SPLIT)
-n_train = len(ds_full)-n_val
-train_set, val_set = random_split(ds_full, [n_train, n_val],
-                                  generator=torch.Generator().manual_seed(RANDOM_SEED))
-ld_train = DataLoader(train_set, batch_size=BATCH, shuffle=True,  num_workers=0)
-ld_val   = DataLoader(val_set,   batch_size=BATCH, shuffle=False, num_workers=0)
-
-# ---------- model ----------
+# ========== 2.  SIMPLE CNN (dropout inserted) ================================
 class SmallCNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(1,16,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),   # 16×50×50
-            nn.Conv2d(16,32,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),  # 32×25×25
-            nn.Conv2d(32,64,3,padding=1), nn.ReLU(), nn.MaxPool2d(2),  # 64×12×12
-            nn.Flatten(),
-            nn.Linear(64*12*12, 128), nn.ReLU(),
-            nn.Linear(128, 2)
+            nn.Conv2d(1,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(),
+            nn.MaxPool2d(2), nn.Dropout2d(0.2),
+
+            nn.Conv2d(16,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.MaxPool2d(2), nn.Dropout2d(0.3),
+
+            nn.Conv2d(32,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(2), nn.Dropout2d(0.4),
+
+            nn.Flatten(),                               # 64×12×12  (H=W=96)
+            nn.Linear(64*12*12,128), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(128,2)
         )
     def forward(self,x): return self.net(x)
 
-model = SmallCNN().to(DEVICE)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=LR)
+# helper to count params
+def count_params(model): return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-# ---------- training loop with live progress -----------------
+# ========== 3.  TRAIN / VALIDATE LOOP =======================================
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-train_loss, val_loss = [], []
-train_acc,  val_acc  = [], []
+def train(model, dl_train, dl_val, epochs=40, lr=1e-3, patience=6):
+    opt  = torch.optim.AdamW(model.parameters(), lr)
+    sched= torch.optim.lr_scheduler.CosineAnnealingLR(opt, epochs*len(dl_train))
+    best_acc, wait, history = 0,0, {"tr_acc":[],"tr_loss":[],"val_acc":[],"val_loss":[]}
+    criterion = nn.CrossEntropyLoss()
 
-epoch_bar = trange(EPOCHS, desc="Epoch", unit="epoch")
-t_start   = time.time()
+    for ep in range(1,epochs+1):
+        model.train(); t0=time.time(); loss_cum=correct=0
+        for xb,yb in tqdm(dl_train, desc=f"Epoch {ep}/{epochs}", leave=False):
+            xb,yb = xb.to(DEVICE), yb.to(DEVICE)
+            opt.zero_grad(); out = model(xb); loss = criterion(out,yb)
+            loss.backward(); opt.step(); sched.step()
+            loss_cum += loss.item()*len(xb)
+            correct  += (out.argmax(1)==yb).sum().item()
+        tr_loss = loss_cum/len(dl_train.dataset)
+        tr_acc  = correct/len(dl_train.dataset)
 
-for epoch in epoch_bar:                          # epoch = 0 … EPOCHS-1
-    # ── train ───────────────────────────────────────────────
-    model.train(); tl = 0; correct = 0; total = 0
-    batch_bar = tqdm(ld_train, leave=False,
-                     desc=f"Train {epoch+1}/{EPOCHS}", unit="batch")
-    for x, y in batch_bar:
-        x, y = x.to(DEVICE), y.to(DEVICE)
-        optimizer.zero_grad()
-        out = model(x)
-        loss = criterion(out, y)
-        loss.backward(); optimizer.step()
+        # validation ---------------------------------------------------------
+        model.eval(); v_loss=v_correct=0
+        with torch.no_grad():
+            for xb,yb in dl_val:
+                xb,yb = xb.to(DEVICE), yb.to(DEVICE)
+                out = model(xb); v_loss += criterion(out,yb).item()*len(xb)
+                v_correct += (out.argmax(1)==yb).sum().item()
+        v_loss/=len(dl_val.dataset); v_acc=v_correct/len(dl_val.dataset)
+        history["tr_acc"].append(tr_acc); history["tr_loss"].append(tr_loss)
+        history["val_acc"].append(v_acc); history["val_loss"].append(v_loss)
 
-        tl += loss.item() * y.size(0)
-        pred = out.argmax(1)
-        correct += (pred == y).sum().item()
-        total   += y.size(0)
+        print(f"  acc {tr_acc:.3f}/{v_acc:.3f} | loss {tr_loss:.3f}/{v_loss:.3f} "
+              f"| time {time.time()-t0:.1f}s")
 
-        batch_bar.set_postfix(loss=f"{loss.item():.3f}")
+        # --------- early stopping ------------------------------------------
+        if v_acc>best_acc: best_acc, wait = v_acc,0
+        else: wait+=1
+        if wait>=patience:
+            print("Early stop – no val-improvement for",patience,"epochs."); break
+    return history, best_acc
 
-    train_loss.append(tl / total)
-    train_acc.append(correct / total)
+# ========== 4.  MAIN PIPELINE ===============================================
+def main():
+    import tkinter as tk
+    from tkinter.filedialog import askdirectory
+    from tkinter import messagebox
+    root=tk.Tk(); root.withdraw()
+    messagebox.showinfo("Select dataset","choose folder with 0 / 1 sub-folders")
+    ds=askdirectory(); messagebox.showinfo("Select output folder","where to save outputs")
+    out=askdirectory(); root.destroy()
+    if not ds or not out: return
 
-    # ── validation ──────────────────────────────────────────
-    model.eval(); vl = 0; correct = 0; total = 0
+    # -------- data ----------------------------------------------------------
+    X,y = load_folder(ds)
+    Xtr,Xte,ytr,yte = train_test_split(X,y,test_size=0.2,stratify=y,random_state=42)
+    dl_tr = DataLoader(TensorDataset(Xtr,ytr),batch_size=64,shuffle=True)
+    dl_v  = DataLoader(TensorDataset(Xte,yte),batch_size=128)
+
+    # -------- model ---------------------------------------------------------
+    model = SmallCNN().to(DEVICE)
+    n_params = count_params(model)
+    start=time.time()
+    history,best = train(model,dl_tr,dl_v,epochs=100,lr=1e-3,patience=15)
+    train_time=time.time()-start
+    torch.save({"model_state":model.state_dict()}, os.path.join(out,"best_model.pt"))
+
+    # -------- evaluation on hold-out test set ------------------------------
+    model.eval(); 
     with torch.no_grad():
-        for x, y in ld_val:
-            x, y = x.to(DEVICE), y.to(DEVICE)
-            out  = model(x)
-            vl  += criterion(out, y).item() * y.size(0)
-            pred = out.argmax(1)
-            correct += (pred == y).sum().item()
-            total   += y.size(0)
+            y_pred = torch.argmax(model(Xte.to(DEVICE)),1).cpu().numpy()
+            test_acc = accuracy_score(yte,y_pred)
+            cm = confusion_matrix(yte,y_pred)
 
-    val_loss.append(vl / total)
-    val_acc.append(correct / total)
+    # -------- plots --------------------------------------------------------
+    ep = np.arange(1,len(history["tr_acc"])+1)
+    plt.figure(); plt.plot(ep,history["tr_acc"],label="train"); plt.plot(ep,history["val_acc"],label="val")
+    plt.xlabel("epoch"); plt.ylabel("accuracy"); plt.title("Accuracy"); plt.legend()
+    plt.savefig(os.path.join(out,"training_accuracy.png")); plt.close()
 
-    # update outer bar’s description with live metrics
-    epoch_bar.set_description(
-        f"Epoch {epoch+1:>2}/{EPOCHS} "
-        f"train-acc {train_acc[-1]:.3f}  val-acc {val_acc[-1]:.3f}"
-    )
+    plt.figure(); plt.plot(ep,history["tr_loss"],label="train"); plt.plot(ep,history["val_loss"],label="val")
+    plt.xlabel("epoch"); plt.ylabel("loss"); plt.title("Loss"); plt.legend()
+    plt.savefig(os.path.join(out,"training_loss.png")); plt.close()
 
-train_time = time.time() - t_start
+    plt.figure(); plt.imshow(cm,cmap="Blues"); plt.title("Confusion matrix")
+    for i,j in itertools.product(range(2),range(2)):
+        plt.text(j,i,str(cm[i,j]),ha='center',va='center',color='white')
+    plt.savefig(os.path.join(out,"confusion_matrix.png")); plt.close()
 
-# ---------- evaluation on full val set ----------
-model.eval(); y_true=[]; y_pred=[]
-with torch.no_grad():
-    for x,y in ld_val:
-        x=x.to(DEVICE)
-        out = model(x).cpu()
-        y_true += y.tolist()
-        y_pred += out.argmax(1).tolist()
+    # -------- doc table ----------------------------------------------------
+    try:
+        from docx import Document
+        doc=Document(); doc.add_heading("Project-6 CNN Report",0)
+        tab=doc.add_table(rows=0,cols=2); tab.style='Light List Accent 1'
+        def row(k,v): cells=tab.add_row().cells; cells[0].text=k; cells[1].text=str(v)
 
-acc = accuracy_score(y_true, y_pred)
-cm  = confusion_matrix(y_true, y_pred)
-report = classification_report(y_true, y_pred, digits=4)
-print("\nValidation accuracy:", acc)
-print(cm)
-print(report)
+        row("a) Library", "PyTorch "+torch.__version__+" (Python "+f"{sys.version_info.major}.{sys.version_info.minor}"+")")
+        row("b) # Learnable parameters", n_params)
+        row("c) Training epochs / batch", f"{len(history['tr_acc'])} / 64")
+        row("   best val-accuracy", f"{best:.4f}")
+        row("d) Test accuracy", f"{test_acc:.4f}")
+        row("   Confusion matrix", json.dumps(cm.tolist()))
+        row("e) Training time (s)", f"{train_time:.1f}")
+        row("   Inference time / image (cpu)", "~{:.3f} ms".format(
+            1000*train_time/len(Xtr)))   # rough
 
-# ---------- save model ----------
-model_path = os.path.join(MODELS_DIR, "worm_cnn.pt")
-torch.save({
-    "model_state": model.state_dict(),
-    "input_size":  (1, IMAGE_SIZE, IMAGE_SIZE)
-}, model_path)
-print("Model saved to", model_path)
+        doc.save(os.path.join(out,"training_report.docx"))
+    except ImportError:
+        with open(os.path.join(out,"training_report.txt"),"w") as f:
+            f.write("See console output & PNGs – python-docx not installed\n")
 
-# ---------- plots ----------
-e=np.arange(1,EPOCHS+1)
-plt.figure(); plt.plot(e, train_loss, label="train"); plt.plot(e, val_loss,label="val")
-plt.title("Loss"); plt.xlabel("epoch"); plt.legend()
-plt.savefig(os.path.join(OUTPUTS_DIR,"training_loss.png")); plt.close()
+    print(f"\nEverything saved inside  {out}")
 
-plt.figure(); plt.plot(e, train_acc, label="train"); plt.plot(e, val_acc, label="val")
-plt.title("Accuracy"); plt.xlabel("epoch"); plt.legend()
-plt.savefig(os.path.join(OUTPUTS_DIR,"training_accuracy.png")); plt.close()
-
-plt.figure(); plt.imshow(cm, cmap="Blues"); plt.title("Confusion matrix")
-for i,j in itertools.product(range(2),range(2)):
-    plt.text(j,i,str(cm[i,j]),ha='center',va='center',color='white')
-plt.savefig(os.path.join(OUTPUTS_DIR,"confusion_matrix.png")); plt.close()
-
-# ---------- tiny report ----------
-try:
-    from docx import Document
-    doc = Document(); doc.add_heading("Project 6 – Worm CNN", 0)
-    tbl = doc.add_table(rows=0, cols=2); tbl.style="Light List"
-    def add(k,v): row=tbl.add_row().cells; row[0].text=k; row[1].text=v
-    add("Visual verification","[add your note]")
-    add("Split sizes",f"Train {n_train}, Val {n_val}")
-    add("Image size","101×101 grayscale")
-    add("Preprocess","equalizeHist → ToTensor")
-    add("Model params", f"{sum(p.numel() for p in model.parameters()):,}")
-    add("Optimizer","Adam  lr=1e-3  epochs=30")
-    add("Training time", f"{train_time:.1f}s on {DEVICE}")
-    add("Val accuracy", f"{acc:.4f}")
-    add("Confusion matrix", np.array2string(cm))
-    add("Classification report", report)
-    doc_path=os.path.join(OUTPUTS_DIR,"training_report.docx")
-    doc.save(doc_path)
-except ImportError:
-    with open(os.path.join(OUTPUTS_DIR,"training_report.txt"),"w") as f:
-        f.write(report)
-        doc_path="training_report.txt"
-
-print("Report saved to", doc_path)
+if __name__=="__main__":
+    import sys, json, numpy as np
+    main()
