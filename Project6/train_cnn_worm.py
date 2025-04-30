@@ -16,7 +16,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms
 import cv2, matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 # ---------- config ----------
 IMAGE_SIZE   = 101               # original size of images
@@ -79,40 +79,57 @@ model = SmallCNN().to(DEVICE)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=LR)
 
-# ---------- training loop ----------
+# ---------- training loop with live progress -----------------
+
 train_loss, val_loss = [], []
 train_acc,  val_acc  = [], []
 
-t_start = time.time()
-for epoch in range(1, EPOCHS+1):
-    # train
-    model.train(); tl=0; correct=0; total=0
-    for x,y in ld_train:
-        x,y = x.to(DEVICE), y.to(DEVICE)
+epoch_bar = trange(EPOCHS, desc="Epoch", unit="epoch")
+t_start   = time.time()
+
+for epoch in epoch_bar:                          # epoch = 0 … EPOCHS-1
+    # ── train ───────────────────────────────────────────────
+    model.train(); tl = 0; correct = 0; total = 0
+    batch_bar = tqdm(ld_train, leave=False,
+                     desc=f"Train {epoch+1}/{EPOCHS}", unit="batch")
+    for x, y in batch_bar:
+        x, y = x.to(DEVICE), y.to(DEVICE)
         optimizer.zero_grad()
         out = model(x)
-        loss = criterion(out,y)
+        loss = criterion(out, y)
         loss.backward(); optimizer.step()
-        tl += loss.item()*y.size(0)
-        pred = out.argmax(1); correct += (pred==y).sum().item()
-        total += y.size(0)
-    train_loss.append(tl/total); train_acc.append(correct/total)
 
-    # val
-    model.eval(); vl=0; correct=0; total=0
+        tl += loss.item() * y.size(0)
+        pred = out.argmax(1)
+        correct += (pred == y).sum().item()
+        total   += y.size(0)
+
+        batch_bar.set_postfix(loss=f"{loss.item():.3f}")
+
+    train_loss.append(tl / total)
+    train_acc.append(correct / total)
+
+    # ── validation ──────────────────────────────────────────
+    model.eval(); vl = 0; correct = 0; total = 0
     with torch.no_grad():
-        for x,y in ld_val:
-            x,y = x.to(DEVICE), y.to(DEVICE)
-            out = model(x); loss=criterion(out,y)
-            vl += loss.item()*y.size(0)
-            pred=out.argmax(1); correct+=(pred==y).sum().item()
-            total+=y.size(0)
-    val_loss.append(vl/total); val_acc.append(correct/total)
+        for x, y in ld_val:
+            x, y = x.to(DEVICE), y.to(DEVICE)
+            out  = model(x)
+            vl  += criterion(out, y).item() * y.size(0)
+            pred = out.argmax(1)
+            correct += (pred == y).sum().item()
+            total   += y.size(0)
 
-    print(f"Epoch {epoch:>2}/{EPOCHS}  "
-          f"train-acc {train_acc[-1]:.3f}  val-acc {val_acc[-1]:.3f}")
+    val_loss.append(vl / total)
+    val_acc.append(correct / total)
 
-train_time = time.time()-t_start
+    # update outer bar’s description with live metrics
+    epoch_bar.set_description(
+        f"Epoch {epoch+1:>2}/{EPOCHS} "
+        f"train-acc {train_acc[-1]:.3f}  val-acc {val_acc[-1]:.3f}"
+    )
+
+train_time = time.time() - t_start
 
 # ---------- evaluation on full val set ----------
 model.eval(); y_true=[]; y_pred=[]
