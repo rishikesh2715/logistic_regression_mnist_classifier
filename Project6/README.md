@@ -1,0 +1,1 @@
+Python Version used for the project is 3.12
